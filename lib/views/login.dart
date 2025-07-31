@@ -1,185 +1,228 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bengkelin_owner/views/buttom_navbar.dart';
+import 'package:flutter_bengkelin_owner/viewmodel/auth_viewmodel.dart';
+import 'package:flutter_bengkelin_owner/views/home_page_owner.dart';
 import 'package:flutter_bengkelin_owner/views/register_page.dart';
+import 'package:flutter_bengkelin_owner/views/splash_screen.dart';
+import '../../config/pref.dart';
+import '../../widget/custom_toast.dart';
 
 class LoginPageOwner extends StatefulWidget {
   const LoginPageOwner({super.key});
 
   @override
-  State<LoginPageOwner> createState() => _LoginPageOwnerState();
+  State<LoginPageOwner> createState() => _LoginPageState();
 }
 
-class _LoginPageOwnerState extends State<LoginPageOwner> {
-  bool _isPasswordVisible = false; // Untuk mengontrol visibilitas password
+class _LoginPageState extends State<LoginPageOwner> {
+  bool _isPasswordVisible = false, isLoading = false;
+  final TextEditingController _emailController = TextEditingController(),
+      _passwordController = TextEditingController();
+
+  final _formKey = GlobalKey<FormState>();
+
+  RegExp get emailRegex => RegExp(
+    r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+  );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Center(
-                child: const Text(
-                  'Masuk Akun Mitra', // Judul
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A2E),
+      backgroundColor: const Color(0xFFF9F9F9), // Light grey background
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 100), // Spacing from top
+              const Text(
+                'Masuk Akun Mitra',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E2A3B), // Dark text color
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Masuk ke dalam akun untuk bisa maksimal dalam\nmenggunakan fitur aplikasi.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 40),
+              // Email Input Field
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'Alamat Email',
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  fillColor: Colors.white,
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none, // No border
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              'Masuk ke dalam akun untuk bisa maksimal dalam menggunakan fitur aplikasi.', // Deskripsi
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 70),
-
-            // Input Alamat Email
-            _buildTextField(
-              hintText: 'Alamat Email',
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 20),
-
-            // Input Kata Sandi
-            _buildTextField(
-              hintText: 'Kata Sandi',
-              obscureText: !_isPasswordVisible,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                  color: Colors.grey,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _isPasswordVisible = !_isPasswordVisible;
-                  });
-                },
-              ),
-            ),
-            const SizedBox(height: 40),
-
-            // Tombol Masuk Sekarang
-            SizedBox(
-              width: double.infinity,
-              height: 55,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Implementasi logika login
-                  // Jika login berhasil, navigasi ke MainWrapperOwner
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MainWrapperOwner(),
+              const SizedBox(height: 16),
+              // Password Input Field
+              TextFormField(
+                controller: _passwordController,
+                obscureText: !_isPasswordVisible,
+                decoration: InputDecoration(
+                  hintText: 'Kata Sandi',
+                  hintStyle: TextStyle(color: Colors.grey[500]),
+                  fillColor: Colors.white,
+                  filled: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none, // No border
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  suffixIcon: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                    child: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                      color: Colors.grey,
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F625D), // Warna tombol
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Masuk Sekarang',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-
-            // Belum memiliki akun? Daftar Sekarang
-            Align(
-              alignment: Alignment.center,
-              child: TextButton(
+              const SizedBox(height: 30),
+              // Masuk Sekarang Button
+              SizedBox(
+                width: double.infinity,
+                child: isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.green,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : ElevatedButton(
+                        onPressed: () {
+                          if (isLoading == false &&
+                              _formKey.currentState!.validate()) {
+                            setState(() {
+                              isLoading = true;
+                            });
+                            login();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(
+                            0xFF4A6B6B,
+                          ), // Greenish button color
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0, // No shadow
+                        ),
+                        child: const Text(
+                          'Masuk sekarang',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 20),
+              const SizedBox(height: 60),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Belum memiliki akun?',
+                    style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      // Navigate to registration page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RegisterPageOwner(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Daftar Sekarang',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF4A6B6B), // Greenish text color
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              TextButton(
                 onPressed: () {
+                  // Navigate to registration page
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const RegisterPageOwner(),
-                    ),
-                  );
-                },
-                child: Text(
-                  'Belum memiliki akun? Daftar Sekarang', // Teks
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // Nanti Saja
-            Align(
-              alignment: Alignment.center,
-              child: TextButton(
-                onPressed: () {
-                  // TODO: Logika untuk "Nanti Saja", mungkin langsung ke MainWrapperOwner tanpa login
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MainWrapperOwner(),
-                    ),
+                    MaterialPageRoute(builder: (context) => SplashScreen()),
                   );
                 },
                 child: const Text(
-                  'Nanti Saja', // Teks
+                  'Nanti Saja',
                   style: TextStyle(
-                    color: Color(0xFF4F625D),
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                    decoration: TextDecoration.underline,
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTextField({
-    required String hintText,
-    TextInputType keyboardType = TextInputType.text,
-    bool obscureText = false,
-    Widget? suffixIcon,
-  }) {
-    return TextField(
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey[500]),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade400),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade400),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF4F625D), width: 1.5),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 16,
-        ),
-        suffixIcon: suffixIcon,
-      ),
-    );
+  login() {
+    AuthViewmodel()
+        .login(email: _emailController.text, password: _passwordController.text)
+        .then((value) async {
+          if (value.code == 200) {
+            setState(() {
+              isLoading = false;
+            });
+            await Session().setUserToken(value.data["access_token"]);
+            if (!mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                // ignore: avoid_types_as_parameter_names
+                builder: (_) => HomePageOwner(onNavigateToTab: (int) {}),
+              ),
+              (Route<dynamic> route) => false,
+            );
+          } else {
+            if (!mounted) return;
+            setState(() {
+              isLoading = false;
+            });
+            showToast(context: context, msg: value.message.toString());
+          }
+        });
   }
 }
