@@ -1,6 +1,10 @@
+// lib/views/profile_page.dart
+
 import 'package:flutter/material.dart';
-import 'dart:io'; // Required for File
-import 'package:file_picker/file_picker.dart'; // Import the file_picker package
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_bengkelin_owner/model/owner_model.dart';
+import 'package:flutter_bengkelin_owner/viewmodel/profile_viewmodel.dart';
 import 'package:flutter_bengkelin_owner/views/edit_profile.dart';
 import 'package:flutter_bengkelin_owner/views/login.dart';
 
@@ -16,15 +20,20 @@ class _ProfilePageState extends State<ProfilePage>
   late TabController _tabController;
   final List<String> _tabs = ['My Products', 'My Services', 'Reviews'];
 
+  // State variables for fetching data
+  bool _isLoading = true;
+  bool _hasError = false;
+  String _errorMessage = '';
+
+  // Variable _Owner untuk menyimpan data profil pemilik
+  OwnerModel? _Owner;
+
   // Placeholder user data - mutable for updates
-  String _userName = 'Yoga Pratama';
   String _userBio = 'Owner of Bengkel Udin | Passionate about automotive';
   String _userLocation = 'Bekasi, West Java';
   String _profileImageUrl = 'assets/profile1.png'; // Default asset image path
-  File?
-  _imageFile; // To store the picked image file (if picked directly from ProfilePage or returned from EditProfilePage)
+  File? _imageFile;
 
-  // Placeholder stats (can be updated later if your data model allows)
   final int _totalProducts = 120;
   final int _totalServices = 45;
   final int _totalReviews = 52;
@@ -34,6 +43,8 @@ class _ProfilePageState extends State<ProfilePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
+    // Panggil fungsi fetching data saat halaman dimuat
+    getUserProfile();
   }
 
   @override
@@ -53,9 +64,6 @@ class _ProfilePageState extends State<ProfilePage>
       if (result != null && result.files.single.path != null) {
         setState(() {
           _imageFile = File(result.files.single.path!);
-          // In a real app, you would typically upload this image to a server here
-          // and then update _profileImageUrl with the URL returned by the server.
-          // For this example, we directly use _imageFile for display.
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -96,7 +104,43 @@ class _ProfilePageState extends State<ProfilePage>
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: _buildBody(), // Menggunakan widget terpisah untuk body
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (_hasError) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(_errorMessage),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: getUserProfile, // Retry fetching data
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      );
+    } else if (_Owner == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Data profil tidak ditemukan.'),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: getUserProfile, // Retry fetching data
+              child: const Text('Muat Ulang'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return SingleChildScrollView(
         child: Column(
           children: [
             _buildProfileHeader(context),
@@ -109,8 +153,8 @@ class _ProfilePageState extends State<ProfilePage>
             _buildTabContent(),
           ],
         ),
-      ),
-    );
+      );
+    }
   }
 
   Widget _buildProfileHeader(BuildContext context) {
@@ -124,8 +168,6 @@ class _ProfilePageState extends State<ProfilePage>
               CircleAvatar(
                 radius: 60,
                 backgroundColor: Colors.grey[300],
-                // Conditionally display image: first from _imageFile (if locally picked/updated),
-                // then from _profileImageUrl (default asset or network URL)
                 backgroundImage: _imageFile != null
                     ? FileImage(_imageFile!) as ImageProvider<Object>
                     : AssetImage(_profileImageUrl)
@@ -135,10 +177,9 @@ class _ProfilePageState extends State<ProfilePage>
                 right: 0,
                 bottom: 0,
                 child: GestureDetector(
-                  onTap:
-                      _pickFileForProfilePage, // Use file_picker for direct edit on ProfilePage
+                  onTap: _pickFileForProfilePage,
                   child: Container(
-                    padding: EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: const Color(0xFF4F625D),
                       shape: BoxShape.circle,
@@ -156,7 +197,7 @@ class _ProfilePageState extends State<ProfilePage>
           ),
           const SizedBox(height: 15),
           Text(
-            _userName,
+            _Owner?.name ?? "Nama Pengguna",
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.bold,
@@ -164,22 +205,18 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ),
           const SizedBox(height: 5),
+          // Menampilkan email
           Text(
-            _userBio,
+            _Owner?.email ?? "Email tidak tersedia",
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Colors.grey[700]),
           ),
           const SizedBox(height: 5),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.location_on, size: 18, color: Colors.grey[600]),
-              const SizedBox(width: 5),
-              Text(
-                _userLocation,
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-              ),
-            ],
+          // Menampilkan nomor telepon
+          Text(
+            _Owner?.phoneNumber ?? "Nomor telepon tidak tersedia",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.grey[700]),
           ),
         ],
       ),
@@ -233,44 +270,37 @@ class _ProfilePageState extends State<ProfilePage>
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () async {
-                // Navigasi ke EditProfilePage dan tunggu hasilnya
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => EditProfilePage(
-                      currentName: _userName,
+                      currentName: _Owner?.name ?? "",
                       currentBio: _userBio,
                       currentLocation: _userLocation,
-                      // Teruskan path gambar yang saat ini ditampilkan.
-                      // Jika _imageFile tidak null, itu berarti gambar telah diubah secara lokal di ProfilePage
-                      // atau sebelumnya di EditProfilePage. Gunakan path file tersebut.
-                      // Jika tidak, gunakan _profileImageUrl yang merupakan default asset atau URL.
                       currentProfileImageUrl: _imageFile != null
                           ? _imageFile!.path
                           : _profileImageUrl,
                     ),
                   ),
                 );
-
-                // Jika ada hasil yang dikembalikan dan menunjukkan pembaruan sukses
                 if (result != null && result is Map) {
                   setState(() {
-                    _userName = result['name'] ?? _userName;
+                    if (result['name'] != null) {
+                      _Owner = OwnerModel(
+                        id: _Owner?.id ?? 0,
+                        name: result['name'],
+                        email: _Owner?.email ?? '',
+                        phoneNumber: _Owner?.phoneNumber ?? '',
+                      );
+                    }
                     _userBio = result['bio'] ?? _userBio;
                     _userLocation = result['location'] ?? _userLocation;
-                    // Perbarui _imageFile jika ada path gambar baru dari EditProfilePage
                     if (result['imagePath'] != null) {
                       _imageFile = File(result['imagePath']);
                     } else if (result['imagePath'] == null &&
                         _imageFile != null) {
-                      // Case: Gambar dihapus atau dikembalikan ke default di EditProfilePage
-                      // Anda mungkin perlu logika tambahan di sini
-                      // Misalnya, jika 'imagePath' null, reset _imageFile dan _profileImageUrl ke default
                       _imageFile = null;
-                      // _profileImageUrl = 'assets/profile1.png'; // Atau URL default Anda
                     }
-                    // Jika Anda menggunakan _profileImageUrl dari URL server, update di sini juga
-                    // _profileImageUrl = result['imageUrl'] ?? _profileImageUrl;
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -301,16 +331,13 @@ class _ProfilePageState extends State<ProfilePage>
                   context,
                 ).showSnackBar(const SnackBar(content: Text('Logging out...')));
 
-                // Simulate a logout process (e.g., clearing user session/token from SharedPreferences/Hive)
-                // In a real app, you would clear user session, token, etc. here before navigating.
                 Future.delayed(const Duration(milliseconds: 500), () {
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const LoginPageOwner(),
                     ),
-                    (Route<dynamic> route) =>
-                        false, // This line removes all previous routes
+                    (Route<dynamic> route) => false,
                   );
                 });
               },
@@ -404,5 +431,58 @@ class _ProfilePageState extends State<ProfilePage>
         ],
       ),
     );
+  }
+
+  // ignore: non_constant_identifier_names
+  Future<void> getUserProfile() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+      _Owner = null;
+    });
+
+    try {
+      final respValue = await ProfileViewmodel().getOwnerProfile();
+      if (!mounted) return;
+
+      if (respValue.code == 200 && respValue.status == 'success') {
+        if (respValue.data != null) {
+          setState(() {
+            _Owner = OwnerModel.fromJson(respValue.data);
+            _isLoading = false;
+          });
+          debugPrint('User profile loaded successfully: ${_Owner?.name}');
+        } else {
+          setState(() {
+            _Owner = null;
+            _isLoading = false;
+            _hasError = true;
+            _errorMessage = 'Data profil tidak valid.';
+            debugPrint(
+              'Failed to load user profile: Status 200/Success but data is null.',
+            );
+          });
+        }
+      } else {
+        setState(() {
+          _Owner = null;
+          _isLoading = false;
+          _hasError = true;
+          _errorMessage = respValue.message ?? 'Gagal memuat profil.';
+          debugPrint(
+            'Failed to load user profile: Code ${respValue.code}, Status: ${respValue.status}, Message: ${respValue.error ?? respValue.message}',
+          );
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _Owner = null;
+        _isLoading = false;
+        _hasError = true;
+        _errorMessage = 'Terjadi kesalahan jaringan atau server.';
+        debugPrint('Error loading user profile: $error');
+      });
+    }
   }
 }

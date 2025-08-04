@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bengkelin_owner/model/owner_model.dart';
+import 'package:flutter_bengkelin_owner/viewmodel/profile_viewmodel.dart';
 import 'package:flutter_bengkelin_owner/views/add_product.dart';
 import 'package:flutter_bengkelin_owner/views/add_service.dart';
 import 'package:flutter_bengkelin_owner/views/pencairan_uang.dart';
 import 'package:flutter_bengkelin_owner/views/profile.dart';
-// Hapus import ChatsOwnerPage di sini jika Anda tidak lagi menggunakan Navigator.push untuk itu.
 
-class HomePageOwner extends StatelessWidget {
+class HomePageOwner extends StatefulWidget {
   final Function(int) onNavigateToTab;
 
   const HomePageOwner({super.key, required this.onNavigateToTab});
+
+  @override
+  State<HomePageOwner> createState() => _HomePageOwnerState();
+}
+
+class _HomePageOwnerState extends State<HomePageOwner> {
+  // Variable _Owner untuk menyimpan data profil pemilik
+  OwnerModel? _Owner;
+
+  @override
+  void initState() {
+    super.initState();
+    getUserProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +38,6 @@ class HomePageOwner extends StatelessWidget {
               // Header Selamat Datang
               Row(
                 children: [
-                  // --- START MODIFICATION ---
                   GestureDetector(
                     // Wrap CircleAvatar with GestureDetector
                     onTap: () {
@@ -31,7 +45,7 @@ class HomePageOwner extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              ProfilePage(), // Navigate to ProfilePage
+                              const ProfilePage(), // Navigate to ProfilePage
                         ),
                       );
                     },
@@ -43,18 +57,17 @@ class HomePageOwner extends StatelessWidget {
                       backgroundColor: Colors.grey,
                     ),
                   ),
-                  // --- END MODIFICATION ---
                   const SizedBox(width: 15),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
+                    children: [
+                      const Text(
                         'Selamat Datang',
                         style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                       Text(
-                        'Yoga Pratama',
-                        style: TextStyle(
+                        _Owner?.name ?? "",
+                        style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF1A1A2E),
@@ -179,7 +192,6 @@ class HomePageOwner extends StatelessWidget {
                                 return Icon(
                                   index < 4 ? Icons.star : Icons.star_border,
                                   color: Colors.amber,
-                                  size: 20,
                                 );
                               }),
                             ),
@@ -244,7 +256,7 @@ class HomePageOwner extends StatelessWidget {
                     icon: Icons.chat_bubble_outline,
                     text: 'Chat',
                     onTap: () {
-                      onNavigateToTab(1);
+                      widget.onNavigateToTab(1);
                     },
                   ),
                 ],
@@ -470,5 +482,47 @@ class HomePageOwner extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ignore: non_constant_identifier_names
+  getUserProfile() async {
+    setState(() {
+      _Owner = null;
+    });
+
+    try {
+      final respValue = await ProfileViewmodel().getOwnerProfile();
+
+      if (!mounted) return;
+
+      if (respValue.code == 200 && respValue.status == 'success') {
+        if (respValue.data != null) {
+          setState(() {
+            _Owner = OwnerModel.fromJson(respValue.data);
+          });
+          debugPrint('User profile loaded successfully: ${_Owner?.name}');
+        } else {
+          setState(() {
+            _Owner = null;
+            debugPrint(
+              'Failed to load user profile: Status 200/Success but data is null.',
+            );
+          });
+        }
+      } else {
+        setState(() {
+          _Owner = null;
+          debugPrint(
+            'Failed to load user profile: Code ${respValue.code}, Status: ${respValue.status}, Message: ${respValue.error ?? respValue.message}',
+          );
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _Owner = null; // Tangani error jaringan atau lainnya
+        debugPrint('Error loading user profile: $error');
+      });
+    }
   }
 }
